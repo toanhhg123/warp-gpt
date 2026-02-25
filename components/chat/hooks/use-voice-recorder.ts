@@ -54,6 +54,7 @@ function getSpeechRecognitionCtor(): SpeechRecognitionCtorLike | null {
 
 export function useVoiceRecorder({ text, setText }: UseVoiceRecorderParams) {
   const [audioUrl, setAudioUrl] = React.useState<string | null>(null);
+  const [audioBlob, setAudioBlob] = React.useState<Blob | null>(null);
   const [recordingError, setRecordingError] = React.useState<string | null>(
     null,
   );
@@ -70,6 +71,7 @@ export function useVoiceRecorder({ text, setText }: UseVoiceRecorderParams) {
   const finalTranscriptRef = React.useRef("");
 
   const clearAudio = React.useCallback(() => {
+    setAudioBlob(null);
     setAudioUrl((currentUrl) => {
       if (currentUrl) {
         URL.revokeObjectURL(currentUrl);
@@ -201,6 +203,7 @@ export function useVoiceRecorder({ text, setText }: UseVoiceRecorderParams) {
         });
 
         if (nextAudioBlob.size > 0) {
+          setAudioBlob(nextAudioBlob);
           const nextUrl = URL.createObjectURL(nextAudioBlob);
           setAudioUrl((currentUrl) => {
             if (currentUrl) {
@@ -270,6 +273,7 @@ export function useVoiceRecorder({ text, setText }: UseVoiceRecorderParams) {
   }, [recordingSeconds]);
 
   return {
+    audioBlob,
     audioUrl,
     clearAudio,
     formattedDuration,

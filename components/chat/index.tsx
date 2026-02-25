@@ -21,6 +21,7 @@ export function ChatInterface() {
   const prefersReducedMotion = usePrefersReducedMotion();
 
   const {
+    audioBlob,
     audioUrl,
     clearAudio,
     formattedDuration,
@@ -29,6 +30,13 @@ export function ChatInterface() {
     recordingError,
     toggleRecording,
   } = useVoiceRecorder({ setText, text });
+  const messageAudioUrlsRef = React.useRef<string[]>([]);
+  const revokeMessageAudioUrls = React.useCallback(() => {
+    for (const url of messageAudioUrlsRef.current) {
+      URL.revokeObjectURL(url);
+    }
+    messageAudioUrlsRef.current = [];
+  }, []);
 
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
@@ -36,6 +44,10 @@ export function ChatInterface() {
       block: "end",
     });
   }, [messages, prefersReducedMotion]);
+
+  React.useEffect(() => {
+    return revokeMessageAudioUrls;
+  }, [revokeMessageAudioUrls]);
 
   const sendMessage = React.useCallback(() => {
     const value = text.trim();
@@ -48,6 +60,10 @@ export function ChatInterface() {
       hour: "2-digit",
       minute: "2-digit",
     });
+    const messageAudioUrl = audioBlob ? URL.createObjectURL(audioBlob) : undefined;
+    if (messageAudioUrl) {
+      messageAudioUrlsRef.current.push(messageAudioUrl);
+    }
 
     setMessages((prev) => [
       ...prev,
@@ -56,12 +72,12 @@ export function ChatInterface() {
         role: "user",
         text: value || "Voice message",
         time,
-        audioUrl: audioUrl ?? undefined,
+        audioUrl: messageAudioUrl,
       },
       {
         id: `m-${prev.length + 2}`,
         role: "assistant",
-        text: audioUrl
+        text: messageAudioUrl
           ? "Mình đã nhận voice note của bạn. Nếu muốn, mình có thể tóm tắt hoặc chuyển thành checklist."
           : "Great prompt. I can wire this into API responses next, then add streaming and persisted chat history.",
         time,
@@ -70,7 +86,7 @@ export function ChatInterface() {
 
     setText("");
     clearAudio();
-  }, [audioUrl, clearAudio, text]);
+  }, [audioBlob, audioUrl, clearAudio, text]);
 
   return (
     <div className="from-muted via-background to-muted/30 text-foreground min-h-screen bg-linear-to-b p-2 sm:p-4">
