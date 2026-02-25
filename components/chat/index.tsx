@@ -30,24 +30,15 @@ export function ChatInterface() {
     recordingError,
     toggleRecording,
   } = useVoiceRecorder({ setText, text });
+
   const messageAudioUrlsRef = React.useRef<string[]>([]);
+
   const revokeMessageAudioUrls = React.useCallback(() => {
     for (const url of messageAudioUrlsRef.current) {
       URL.revokeObjectURL(url);
     }
     messageAudioUrlsRef.current = [];
   }, []);
-
-  React.useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: prefersReducedMotion ? "auto" : "smooth",
-      block: "end",
-    });
-  }, [messages, prefersReducedMotion]);
-
-  React.useEffect(() => {
-    return revokeMessageAudioUrls;
-  }, [revokeMessageAudioUrls]);
 
   const sendMessage = React.useCallback(() => {
     const value = text.trim();
@@ -60,7 +51,9 @@ export function ChatInterface() {
       hour: "2-digit",
       minute: "2-digit",
     });
-    const messageAudioUrl = audioBlob ? URL.createObjectURL(audioBlob) : undefined;
+    const messageAudioUrl = audioBlob
+      ? URL.createObjectURL(audioBlob)
+      : undefined;
     if (messageAudioUrl) {
       messageAudioUrlsRef.current.push(messageAudioUrl);
     }
@@ -87,6 +80,17 @@ export function ChatInterface() {
     setText("");
     clearAudio();
   }, [audioBlob, audioUrl, clearAudio, text]);
+
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+      block: "end",
+    });
+  }, [messages, prefersReducedMotion]);
+
+  React.useEffect(() => {
+    return revokeMessageAudioUrls;
+  }, [revokeMessageAudioUrls]);
 
   return (
     <div className="from-muted via-background to-muted/30 text-foreground min-h-screen bg-linear-to-b p-2 sm:p-4">
