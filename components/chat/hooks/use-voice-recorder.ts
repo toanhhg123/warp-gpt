@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import * as React from "react";
+import * as React from 'react';
 
 type SpeechRecognitionAlternativeLike = {
   transcript: string;
@@ -34,30 +34,20 @@ type WindowWithSpeechRecognition = Window & {
   SpeechRecognition?: SpeechRecognitionCtorLike;
 };
 
-type UseVoiceRecorderParams = {
-  text: string;
-  setText: React.Dispatch<React.SetStateAction<string>>;
-};
-
 function getSpeechRecognitionCtor(): SpeechRecognitionCtorLike | null {
-  if (typeof window === "undefined") {
+  if (typeof window === 'undefined') {
     return null;
   }
 
   const windowWithSpeech = window as WindowWithSpeechRecognition;
-  return (
-    windowWithSpeech.SpeechRecognition ??
-    windowWithSpeech.webkitSpeechRecognition ??
-    null
-  );
+  return windowWithSpeech.SpeechRecognition ?? windowWithSpeech.webkitSpeechRecognition ?? null;
 }
 
-export function useVoiceRecorder({ text, setText }: UseVoiceRecorderParams) {
+export function useVoiceRecorder() {
   const [audioUrl, setAudioUrl] = React.useState<string | null>(null);
   const [audioBlob, setAudioBlob] = React.useState<Blob | null>(null);
-  const [recordingError, setRecordingError] = React.useState<string | null>(
-    null,
-  );
+  const [voiceText, setVoiceText] = React.useState('');
+  const [recordingError, setRecordingError] = React.useState<string | null>(null);
   const [isSpeechSupported, setIsSpeechSupported] = React.useState(false);
   const [isRecording, setIsRecording] = React.useState(false);
   const [recordingSeconds, setRecordingSeconds] = React.useState(0);
@@ -67,10 +57,10 @@ export function useVoiceRecorder({ text, setText }: UseVoiceRecorderParams) {
   const audioChunksRef = React.useRef<Blob[]>([]);
   const timerRef = React.useRef<number | null>(null);
   const recognitionRef = React.useRef<SpeechRecognitionLike | null>(null);
-  const inputBeforeVoiceRef = React.useRef("");
-  const finalTranscriptRef = React.useRef("");
+  const finalTranscriptRef = React.useRef('');
 
   const clearAudio = React.useCallback(() => {
+    setVoiceText('');
     setAudioBlob(null);
     setAudioUrl((currentUrl) => {
       if (currentUrl) {
@@ -98,22 +88,17 @@ export function useVoiceRecorder({ text, setText }: UseVoiceRecorderParams) {
     const recognition = new RecognitionCtor();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = "vi-VN";
+    recognition.lang = 'vi-VN';
 
-    inputBeforeVoiceRef.current = text.trim();
-    finalTranscriptRef.current = "";
+    finalTranscriptRef.current = '';
 
     recognition.onresult = (event) => {
-      let interim = "";
-      let finalPart = "";
+      let interim = '';
+      let finalPart = '';
 
-      for (
-        let index = event.resultIndex;
-        index < event.results.length;
-        index += 1
-      ) {
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
         const result = event.results[index];
-        const transcript = result[0]?.transcript?.trim() ?? "";
+        const transcript = result[0]?.transcript?.trim() ?? '';
 
         if (!transcript) {
           continue;
@@ -127,23 +112,18 @@ export function useVoiceRecorder({ text, setText }: UseVoiceRecorderParams) {
       }
 
       if (finalPart) {
-        finalTranscriptRef.current =
-          `${finalTranscriptRef.current} ${finalPart}`
-            .replace(/\s+/g, " ")
-            .trim();
+        finalTranscriptRef.current = `${finalTranscriptRef.current} ${finalPart}`
+          .replace(/\s+/g, ' ')
+          .trim();
       }
 
-      const combinedText = [
-        inputBeforeVoiceRef.current,
-        finalTranscriptRef.current,
-        interim.trim(),
-      ]
+      const combinedText = [finalTranscriptRef.current, interim.trim()]
         .filter(Boolean)
-        .join(" ")
-        .replace(/\s+/g, " ")
+        .join(' ')
+        .replace(/\s+/g, ' ')
         .trim();
 
-      setText(combinedText);
+      setVoiceText(combinedText);
     };
 
     recognition.onerror = (event) => {
@@ -156,7 +136,7 @@ export function useVoiceRecorder({ text, setText }: UseVoiceRecorderParams) {
 
     recognition.start();
     recognitionRef.current = recognition;
-  }, [setText, text]);
+  }, []);
 
   const stopRecording = React.useCallback(() => {
     if (timerRef.current) {
@@ -168,7 +148,7 @@ export function useVoiceRecorder({ text, setText }: UseVoiceRecorderParams) {
     stopVoiceRecognition();
 
     const recorder = mediaRecorderRef.current;
-    if (recorder && recorder.state !== "inactive") {
+    if (recorder && recorder.state !== 'inactive') {
       recorder.stop();
       return;
     }
@@ -199,7 +179,7 @@ export function useVoiceRecorder({ text, setText }: UseVoiceRecorderParams) {
 
       recorder.onstop = () => {
         const nextAudioBlob = new Blob(audioChunksRef.current, {
-          type: recorder.mimeType || "audio/webm",
+          type: recorder.mimeType || 'audio/webm',
         });
 
         if (nextAudioBlob.size > 0) {
@@ -227,9 +207,7 @@ export function useVoiceRecorder({ text, setText }: UseVoiceRecorderParams) {
 
       startVoiceRecognition();
     } catch {
-      setRecordingError(
-        "Không thể truy cập microphone. Hãy kiểm tra quyền trên trình duyệt.",
-      );
+      setRecordingError('Không thể truy cập microphone. Hãy kiểm tra quyền trên trình duyệt.');
       setIsRecording(false);
     }
   }, [clearAudio, startVoiceRecognition]);
@@ -248,10 +226,7 @@ export function useVoiceRecorder({ text, setText }: UseVoiceRecorderParams) {
         window.clearInterval(timerRef.current);
       }
 
-      if (
-        mediaRecorderRef.current &&
-        mediaRecorderRef.current.state !== "inactive"
-      ) {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         mediaRecorderRef.current.stop();
       }
 
@@ -267,8 +242,8 @@ export function useVoiceRecorder({ text, setText }: UseVoiceRecorderParams) {
   const formattedDuration = React.useMemo(() => {
     const minutes = Math.floor(recordingSeconds / 60)
       .toString()
-      .padStart(2, "0");
-    const seconds = (recordingSeconds % 60).toString().padStart(2, "0");
+      .padStart(2, '0');
+    const seconds = (recordingSeconds % 60).toString().padStart(2, '0');
     return `${minutes}:${seconds}`;
   }, [recordingSeconds]);
 
@@ -281,5 +256,6 @@ export function useVoiceRecorder({ text, setText }: UseVoiceRecorderParams) {
     isSpeechSupported,
     recordingError,
     toggleRecording,
+    voiceText,
   };
 }

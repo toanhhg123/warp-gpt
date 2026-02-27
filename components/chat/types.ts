@@ -1,4 +1,4 @@
-export type ChatRole = "user" | "assistant";
+export type ChatRole = 'user' | 'assistant';
 
 export type ChatMessage = {
   id: string;
@@ -6,4 +6,5 @@ export type ChatMessage = {
   text: string;
   time: string;
   audioUrl?: string;
+  imageUrl?: string;
 };

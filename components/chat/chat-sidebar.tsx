@@ -1,7 +1,7 @@
-import { MessageSquareIcon, PlusIcon } from "lucide-react";
+import { MessageSquareIcon, PlusIcon } from 'lucide-react';
 
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 type ChatSidebarProps = {
   conversations: string[];
@@ -9,21 +9,20 @@ type ChatSidebarProps = {
   onClose: () => void;
 };
 
-export function ChatSidebar({
-  conversations,
-  isOpen,
-  onClose,
-}: ChatSidebarProps) {
+export function ChatSidebar({ conversations, isOpen, onClose }: ChatSidebarProps) {
   return (
     <>
       <aside
         className={cn(
-          "bg-muted/30 border-border fixed inset-y-2 left-2 z-40 w-72 border p-3 backdrop-blur-xl transition-transform duration-200 lg:static lg:inset-auto lg:translate-x-0 lg:border-0 lg:border-r",
-          isOpen ? "translate-x-0" : "-translate-x-full",
+          'bg-muted/30 border-border fixed inset-y-2 left-2 z-40 w-72 rounded-2xl border p-3 backdrop-blur-xl transition-transform duration-200 lg:static lg:inset-auto lg:translate-x-0 lg:rounded-none lg:border-0 lg:border-r',
+          isOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
         <div className="mb-4 flex items-center justify-between">
-          <Button className="w-full justify-start" variant="outline">
+          <Button
+            className="w-full justify-start rounded-lg"
+            variant="outline"
+          >
             <PlusIcon data-icon="inline-start" />
             New chat
           </Button>
@@ -34,8 +33,8 @@ export function ChatSidebar({
             <button
               key={item}
               className={cn(
-                "hover:bg-muted flex w-full items-center gap-2 border px-2.5 py-2 text-left text-xs transition-colors",
-                idx === 0 ? "bg-muted border-border" : "border-transparent",
+                'hover:bg-muted flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs transition-colors',
+                idx === 0 ? 'bg-muted border-border' : 'border-transparent',
               )}
               type="button"
             >
