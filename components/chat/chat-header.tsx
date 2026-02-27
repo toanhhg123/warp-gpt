@@ -1,6 +1,6 @@
-import { MoreHorizontalIcon, PanelLeftIcon, SparklesIcon } from "lucide-react";
+import { MoreHorizontalIcon, PanelLeftIcon, SparklesIcon } from 'lucide-react';
 
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 
 type ChatHeaderProps = {
   onOpenSidebar: () => void;
@@ -20,15 +20,20 @@ export function ChatHeader({ onOpenSidebar }: ChatHeaderProps) {
         </Button>
         <div className="mr-auto min-w-0">
           <p className="truncate text-sm font-medium">New UI mockup</p>
-          <p className="text-muted-foreground text-xs">
-            ChatGPT 4.1 style workspace
-          </p>
+          <p className="text-muted-foreground text-xs">ChatGPT 4.1 style workspace</p>
         </div>
-        <Button size="sm" variant="outline">
+        <Button
+          size="sm"
+          variant="outline"
+          className="rounded-lg"
+        >
           <SparklesIcon data-icon="inline-start" />
           Upgrade
         </Button>
-        <Button size="icon-sm" variant="ghost">
+        <Button
+          size="icon-sm"
+          variant="ghost"
+        >
           <MoreHorizontalIcon />
         </Button>
       </div>
