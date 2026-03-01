@@ -43,7 +43,9 @@ function getSpeechRecognitionCtor(): SpeechRecognitionCtorLike | null {
   return windowWithSpeech.SpeechRecognition ?? windowWithSpeech.webkitSpeechRecognition ?? null;
 }
 
-export function useVoiceRecorder() {
+export function useVoiceRecorder({
+  onStopTalking,
+}: { onStopTalking?: (text?: string) => void } = {}) {
   const [audioUrl, setAudioUrl] = React.useState<string | null>(null);
   const [audioBlob, setAudioBlob] = React.useState<Blob | null>(null);
   const [voiceText, setVoiceText] = React.useState('');
@@ -59,6 +61,23 @@ export function useVoiceRecorder() {
   const recognitionRef = React.useRef<SpeechRecognitionLike | null>(null);
   const finalTranscriptRef = React.useRef('');
 
+  const [isTalking, setIsTalking] = React.useState(false);
+  const audioContextRef = React.useRef<AudioContext | null>(null);
+  const analyserRef = React.useRef<AnalyserNode | null>(null);
+  const animationFrameRef = React.useRef<number | null>(null);
+  const silenceTimeoutRef = React.useRef<number | null>(null);
+  const visualTimeoutRef = React.useRef<number | null>(null);
+
+  const onStopTalkingRef = React.useRef(onStopTalking);
+  React.useEffect(() => {
+    onStopTalkingRef.current = onStopTalking;
+  }, [onStopTalking]);
+
+  const voiceTextRef = React.useRef(voiceText);
+  React.useEffect(() => {
+    voiceTextRef.current = voiceText;
+  }, [voiceText]);
+
   const clearAudio = React.useCallback(() => {
     setVoiceText('');
     setAudioBlob(null);
@@ -68,6 +87,14 @@ export function useVoiceRecorder() {
       }
       return null;
     });
+    finalTranscriptRef.current = '';
+
+    // Clear the SpeechRecognition buffer by stopping it.
+    // The useEffect hook will automatically restart it if we are still recording.
+    if (recognitionRef.current) {
+      recognitionRef.current.onresult = null; // Prevent final results from updating state
+      recognitionRef.current.stop();
+    }
   }, []);
 
   React.useEffect(() => {
@@ -78,6 +105,8 @@ export function useVoiceRecorder() {
     recognitionRef.current?.stop();
     recognitionRef.current = null;
   }, []);
+
+  const startVoiceRecognitionRef = React.useRef<((e?: unknown) => void) | null>(null);
 
   const startVoiceRecognition = React.useCallback(() => {
     const RecognitionCtor = getSpeechRecognitionCtor();
@@ -132,17 +161,53 @@ export function useVoiceRecorder() {
 
     recognition.onend = () => {
       recognitionRef.current = null;
+      // Automatically restart if we are still supposed to be recording
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        try {
+          if (startVoiceRecognitionRef.current) {
+            startVoiceRecognitionRef.current();
+          }
+        } catch (e) {
+          console.error('Lỗi khởi động lại nhận diện giọng nói:', e);
+        }
+      }
     };
 
     recognition.start();
     recognitionRef.current = recognition;
   }, []);
 
+  React.useEffect(() => {
+    startVoiceRecognitionRef.current = startVoiceRecognition;
+  }, [startVoiceRecognition]);
+
   const stopRecording = React.useCallback(() => {
     if (timerRef.current) {
       window.clearInterval(timerRef.current);
       timerRef.current = null;
     }
+
+    if (silenceTimeoutRef.current) {
+      window.clearTimeout(silenceTimeoutRef.current);
+      silenceTimeoutRef.current = null;
+    }
+
+    if (visualTimeoutRef.current) {
+      window.clearTimeout(visualTimeoutRef.current);
+      visualTimeoutRef.current = null;
+    }
+
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      void audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    analyserRef.current = null;
+    setIsTalking(false);
 
     setIsRecording(false);
     stopVoiceRecognition();
@@ -201,6 +266,73 @@ export function useVoiceRecorder() {
       recorder.start();
       setIsRecording(true);
 
+      const audioCtx = new (
+        window.AudioContext ||
+        (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext!
+      )();
+      const analyser = audioCtx.createAnalyser();
+      const source = audioCtx.createMediaStreamSource(stream);
+      source.connect(analyser);
+      analyser.fftSize = 256;
+
+      audioContextRef.current = audioCtx;
+      analyserRef.current = analyser;
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      const checkAudioLevel = () => {
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / bufferLength;
+        const currentlyTalking = average > 10;
+
+        if (currentlyTalking) {
+          setIsTalking(true);
+          if (silenceTimeoutRef.current !== null) {
+            window.clearTimeout(silenceTimeoutRef.current);
+            silenceTimeoutRef.current = null;
+          }
+          if (visualTimeoutRef.current !== null) {
+            window.clearTimeout(visualTimeoutRef.current);
+            visualTimeoutRef.current = null;
+          }
+        } else {
+          if (visualTimeoutRef.current === null) {
+            visualTimeoutRef.current = window.setTimeout(() => {
+              visualTimeoutRef.current = null;
+              setIsTalking(false);
+            }, 1000);
+          }
+          if (silenceTimeoutRef.current === null) {
+            silenceTimeoutRef.current = window.setTimeout(() => {
+              silenceTimeoutRef.current = null;
+              if (voiceTextRef.current.trim() !== '') {
+                if (onStopTalkingRef.current) {
+                  const currentText = voiceTextRef.current;
+                  voiceTextRef.current = '';
+                  setVoiceText(''); // Clear immediately so next tick doesn't resend
+                  finalTranscriptRef.current = '';
+                  if (recognitionRef.current) {
+                    recognitionRef.current.onresult = null; // Prevent final async results from flashing
+                    recognitionRef.current.stop();
+                  }
+
+                  onStopTalkingRef.current(currentText);
+                }
+              }
+            }, 1000);
+          }
+        }
+
+        animationFrameRef.current = requestAnimationFrame(checkAudioLevel);
+      };
+
+      checkAudioLevel();
+
       timerRef.current = window.setInterval(() => {
         setRecordingSeconds((value) => value + 1);
       }, 1000);
@@ -224,6 +356,13 @@ export function useVoiceRecorder() {
     return () => {
       if (timerRef.current) {
         window.clearInterval(timerRef.current);
+      }
+
+      if (silenceTimeoutRef.current) {
+        window.clearTimeout(silenceTimeoutRef.current);
+      }
+      if (visualTimeoutRef.current) {
+        window.clearTimeout(visualTimeoutRef.current);
       }
 
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -254,6 +393,7 @@ export function useVoiceRecorder() {
     formattedDuration,
     isRecording,
     isSpeechSupported,
+    isTalking,
     recordingError,
     toggleRecording,
     voiceText,

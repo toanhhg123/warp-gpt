@@ -9,7 +9,6 @@ import { ChatMessages } from './chat-messages';
 import { ChatSidebar } from './chat-sidebar';
 import { usePrefersReducedMotion } from './hooks/use-prefers-reduced-motion';
 import { useVoiceRecorder } from './hooks/use-voice-recorder';
-import { VoiceModeOverlay } from './voice-mode-overlay';
 import type { ChatMessage } from './types';
 
 export function ChatInterface() {
@@ -27,10 +26,17 @@ export function ChatInterface() {
     formattedDuration,
     isRecording,
     isSpeechSupported,
+    isTalking,
     recordingError,
     toggleRecording,
     voiceText,
-  } = useVoiceRecorder();
+  } = useVoiceRecorder({
+    onStopTalking: (capturedText?: string) => {
+      if (isRecording) {
+        sendMessage(capturedText || voiceText);
+      }
+    },
+  });
 
   const messageAudioUrlsRef = React.useRef<string[]>([]);
 
@@ -76,9 +82,7 @@ export function ChatInterface() {
 
       setIsLoading(true);
 
-      if (typeof overrideText !== 'string') {
-        setText('');
-      }
+      setText('');
       clearAudio();
 
       const history = messages
@@ -163,18 +167,6 @@ export function ChatInterface() {
 
   return (
     <div className="from-muted via-background to-muted/30 text-foreground min-h-screen bg-linear-to-b p-2 sm:p-4">
-      <VoiceModeOverlay
-        duration={formattedDuration}
-        isVisible={isRecording}
-        onStop={() => {
-          toggleRecording();
-          sendMessage(voiceText);
-        }}
-        onClose={toggleRecording}
-        reducedMotion={prefersReducedMotion}
-        text={voiceText}
-      />
-
       <div className="mx-auto flex h-[calc(100dvh-1rem)] w-full max-w-400 overflow-hidden rounded-2xl sm:rounded-3xl border bg-background shadow-2xl sm:h-[calc(100dvh-2rem)]">
         <ChatSidebar
           conversations={conversations}
@@ -195,11 +187,13 @@ export function ChatInterface() {
             isLoading={isLoading}
             isRecording={isRecording}
             isSpeechSupported={isSpeechSupported}
+            isTalking={isTalking}
             onSend={sendMessage}
             onTextChange={setText}
             onToggleRecording={toggleRecording}
             recordingError={recordingError}
             text={text}
+            voiceText={voiceText}
           />
         </main>
       </div>

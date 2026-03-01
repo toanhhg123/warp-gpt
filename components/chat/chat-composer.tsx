@@ -1,4 +1,5 @@
-import { MicIcon, PaperclipIcon, SendHorizontalIcon, SquareIcon } from 'lucide-react';
+import { AudioLines, MicIcon, PaperclipIcon, SendHorizontalIcon, SquareIcon } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 
 import {
   InputGroup,
@@ -16,11 +17,13 @@ type ChatComposerProps = {
   isLoading: boolean;
   isRecording: boolean;
   isSpeechSupported: boolean;
-  onSend: () => void | Promise<void>;
+  isTalking: boolean;
+  onSend: (overrideText?: string) => Promise<void>;
   onTextChange: (value: string) => void;
   onToggleRecording: () => void;
   recordingError: string | null;
   text: string;
+  voiceText: string;
 };
 
 export function ChatComposer({
@@ -29,15 +32,54 @@ export function ChatComposer({
   isLoading,
   isRecording,
   isSpeechSupported,
+  isTalking,
   onSend,
   onTextChange,
   onToggleRecording,
   recordingError,
   text,
+  voiceText,
 }: ChatComposerProps) {
   return (
     <footer className="border-border bg-background/95 border-t p-3 backdrop-blur-md sm:p-4">
       <div className="w-full">
+        {isRecording && (
+          <div className="flex flex-col justify-center mb-4 items-center bg-transparent w-full">
+            <div className="relative h-[160px] w-full max-w-[160px] flex items-center justify-center">
+              <AnimatePresence mode="popLayout">
+                {!isTalking && (
+                  <motion.img
+                    key="idle"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5, ease: 'easeInOut' }}
+                    src="/idle.gif"
+                    className="absolute inset-0 h-full w-full object-contain bg-transparent"
+                    alt="Idle indicator"
+                  />
+                )}
+                {isTalking && (
+                  <motion.img
+                    key="talking"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5, ease: 'easeInOut' }}
+                    src="/talking.gif"
+                    className="absolute inset-0 h-full w-full object-contain bg-transparent"
+                    alt="Talking indicator"
+                  />
+                )}
+              </AnimatePresence>
+            </div>
+            {voiceText && (
+              <p className="mt-2 text-sm text-center font-medium animate-pulse text-foreground/80">
+                {voiceText}
+              </p>
+            )}
+          </div>
+        )}
         <InputGroup className="h-auto items-end rounded-2xl overflow-hidden">
           <InputGroupAddon
             align="block-start"
@@ -90,19 +132,21 @@ export function ChatComposer({
               {isRecording ? <SquareIcon /> : <MicIcon />}
             </InputGroupButton>
             <InputGroupButton
-              aria-label="Send message"
+              aria-label={text.trim() === '' && !audioUrl ? 'Open voice mode' : 'Send message'}
               size="icon-sm"
               variant="default"
-              disabled={isRecording || isLoading || text.trim() === ''}
-              onClick={text.trim() === '' ? undefined : () => void onSend()}
-              className={cn(
-                'rounded-full text-background hover:bg-foreground/90',
-                isRecording || isLoading || text.trim() === ''
-                  ? 'opacity-50 cursor-not-allowed'
-                  : '',
-              )}
+              disabled={isRecording || isLoading}
+              onClick={(e) => {
+                e.preventDefault();
+                if (text.trim() === '' && !audioUrl) {
+                  onToggleRecording();
+                } else {
+                  onSend();
+                }
+              }}
+              className={cn('rounded-full text-background hover:bg-foreground/90 transition-all')}
             >
-              <SendHorizontalIcon />
+              {text.trim() === '' && !audioUrl ? <AudioLines /> : <SendHorizontalIcon />}
             </InputGroupButton>{' '}
           </InputGroupAddon>
         </InputGroup>
