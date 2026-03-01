@@ -4,19 +4,19 @@ export const starterMessages: ChatMessage[] = [
   {
     id: "m-1",
     role: "assistant",
-    text: "Hi! I can help you build and refine your UI. Share your screen goals and I will draft the next step.",
+    text: "Chào bạn, mình là trợ lý bóng đá. Bạn muốn xem phân tích trận đấu, đội hình dự kiến hay nhận định kèo hôm nay?",
     time: "11:22 AM",
   },
   {
     id: "m-2",
     role: "user",
-    text: "Create a clean chat layout with a left history rail and an input pinned at the bottom.",
+    text: "Phân tích giúp mình trận Manchester City vs Arsenal tối nay.",
     time: "11:23 AM",
   },
   {
     id: "m-3",
     role: "assistant",
-    text: "Done. I set up a responsive shell with conversation history, centered message stream, and a sticky composer.",
+    text: "Trận này khả năng kiểm soát bóng nghiêng về Man City, còn Arsenal nguy hiểm ở phản công nhanh. Nếu bạn muốn, mình có thể breakdown theo từng tuyến và đưa tỷ lệ dự đoán bàn thắng.",
     time: "11:24 AM",
   },
 ];

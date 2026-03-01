@@ -13,9 +13,10 @@ type ChatComposerProps = {
   audioUrl: string | null;
   formattedDuration: string;
 
+  isLoading: boolean;
   isRecording: boolean;
   isSpeechSupported: boolean;
-  onSend: () => void;
+  onSend: () => void | Promise<void>;
   onTextChange: (value: string) => void;
   onToggleRecording: () => void;
   recordingError: string | null;
@@ -25,6 +26,7 @@ type ChatComposerProps = {
 export function ChatComposer({
   audioUrl,
   formattedDuration,
+  isLoading,
   isRecording,
   isSpeechSupported,
   onSend,
@@ -62,9 +64,9 @@ export function ChatComposer({
             placeholder="Message ChatGPT"
             onChange={(event) => onTextChange(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey && !isRecording) {
+              if (event.key === 'Enter' && !event.shiftKey && !isRecording && !isLoading) {
                 event.preventDefault();
-                onSend();
+                void onSend();
               }
             }}
           />
@@ -91,11 +93,13 @@ export function ChatComposer({
               aria-label="Send message"
               size="icon-sm"
               variant="default"
-              disabled={isRecording}
-              onClick={text.trim() === '' ? undefined : onSend}
+              disabled={isRecording || isLoading || text.trim() === ''}
+              onClick={text.trim() === '' ? undefined : () => void onSend()}
               className={cn(
                 'rounded-full text-background hover:bg-foreground/90',
-                text.trim() === '' ? 'opacity-50 cursor-not-allowed' : '',
+                isRecording || isLoading || text.trim() === ''
+                  ? 'opacity-50 cursor-not-allowed'
+                  : '',
               )}
             >
               <SendHorizontalIcon />

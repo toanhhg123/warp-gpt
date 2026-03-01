@@ -3,7 +3,7 @@ import { BotIcon, UserIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 import { cn } from '@/lib/utils';
-import { TypingEffect } from './typing-effect';
+import { MarkdownContent } from './markdown-content';
 import type { ChatMessage } from './types';
 
 type ChatMessagesProps = {
@@ -53,17 +53,11 @@ export function ChatMessages({ messages, isLoading, messagesEndRef }: ChatMessag
                     className="w-full h-auto max-w-sm rounded-xl border border-border mt-1"
                   />
                 )}
-                <p>
-                  {isLatestAssistantMessage ? (
-                    <TypingEffect
-                      text={message.text}
-                      speed={15}
-                      delay={100}
-                    />
-                  ) : (
-                    message.text
-                  )}
-                </p>
+                {message.role === 'assistant' ? (
+                  <MarkdownContent content={message.text} />
+                ) : (
+                  <p>{message.text}</p>
+                )}
                 {message.audioUrl ? (
                   <audio
                     className="mt-3 w-full min-w-55"

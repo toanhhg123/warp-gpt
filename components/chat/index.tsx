@@ -42,14 +42,19 @@ export function ChatInterface() {
   }, []);
 
   const sendMessage = React.useCallback(
-    (overrideText?: string) => {
+    async (overrideText?: string) => {
+      if (isLoading) {
+        return;
+      }
+
       const value = typeof overrideText === 'string' ? overrideText.trim() : text.trim();
       if (!value && !audioUrl) {
         return;
       }
+      const prompt = value || 'I sent a voice message. Please help me from this context.';
 
       const now = new Date();
-      const time = now.toLocaleTimeString([], {
+      const userTime = now.toLocaleTimeString([], {
         hour: '2-digit',
         minute: '2-digit',
       });
@@ -64,7 +69,7 @@ export function ChatInterface() {
           id: `m-${prev.length + 1}`,
           role: 'user',
           text: value || 'Voice message',
-          time,
+          time: userTime,
           audioUrl: messageAudioUrl,
         },
       ]);
@@ -76,25 +81,73 @@ export function ChatInterface() {
       }
       clearAudio();
 
-      setTimeout(() => {
-        setIsLoading(false);
+      const history = messages
+        .filter((item) => item.text.trim().length > 0)
+        .map((item) => ({
+          role: item.role,
+          text: item.text,
+        }));
+
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            history,
+            message: prompt,
+          }),
+        });
+
+        const payload = (await response.json()) as { error?: string; reply?: string };
+
+        if (!response.ok) {
+          throw new Error(payload.error || 'Gemini API returned an error.');
+        }
+
+        const assistantTime = new Date().toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+
+        const replyText = payload.reply?.trim();
+        if (!replyText) {
+          throw new Error('Empty response from Gemini.');
+        }
+
         setMessages((prev) => [
           ...prev,
           {
             id: `m-${prev.length + 1}`,
             role: 'assistant',
-            text: messageAudioUrl
-              ? 'Mình đã nhận voice note của bạn. Nếu muốn, mình có thể tóm tắt hoặc chuyển thành checklist.'
-              : "Great prompt. I've sent you a generated image based on your request. I can wire this into API responses next.",
-            imageUrl: !messageAudioUrl
-              ? 'https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&q=80&w=800'
-              : undefined,
-            time,
+            text: replyText,
+            time: assistantTime,
           },
         ]);
-      }, 1000);
+      } catch (error) {
+        const assistantTime = new Date().toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unexpected error while calling Gemini API.';
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `m-${prev.length + 1}`,
+            role: 'assistant',
+            text: `Lỗi khi gọi Gemini: ${errorMessage}`,
+            time: assistantTime,
+          },
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
     },
-    [audioBlob, audioUrl, clearAudio, text],
+    [audioBlob, audioUrl, clearAudio, isLoading, messages, text],
   );
 
   React.useEffect(() => {
@@ -139,6 +192,7 @@ export function ChatInterface() {
           <ChatComposer
             audioUrl={audioUrl}
             formattedDuration={formattedDuration}
+            isLoading={isLoading}
             isRecording={isRecording}
             isSpeechSupported={isSpeechSupported}
             onSend={sendMessage}
