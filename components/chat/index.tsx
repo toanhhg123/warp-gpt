@@ -30,10 +30,17 @@ export function ChatInterface() {
     recordingError,
     toggleRecording,
     voiceText,
+    recordingMode,
   } = useVoiceRecorder({
     onStopTalking: (capturedText?: string) => {
       if (isRecording) {
         sendMessage(capturedText || voiceText);
+      }
+    },
+    onStopRecording: (mode: 'audio' | 'voice', capturedText: string) => {
+      if (mode === 'audio' && capturedText) {
+        setText((prev) => (prev ? `${prev} ${capturedText}` : capturedText).trim());
+        clearAudio();
       }
     },
   });
@@ -194,6 +201,7 @@ export function ChatInterface() {
             recordingError={recordingError}
             text={text}
             voiceText={voiceText}
+            recordingMode={recordingMode}
           />
         </main>
       </div>

@@ -45,13 +45,18 @@ function getSpeechRecognitionCtor(): SpeechRecognitionCtorLike | null {
 
 export function useVoiceRecorder({
   onStopTalking,
-}: { onStopTalking?: (text?: string) => void } = {}) {
+  onStopRecording,
+}: {
+  onStopTalking?: (text?: string) => void;
+  onStopRecording?: (mode: 'audio' | 'voice', text: string) => void;
+} = {}) {
   const [audioUrl, setAudioUrl] = React.useState<string | null>(null);
   const [audioBlob, setAudioBlob] = React.useState<Blob | null>(null);
   const [voiceText, setVoiceText] = React.useState('');
   const [recordingError, setRecordingError] = React.useState<string | null>(null);
   const [isSpeechSupported, setIsSpeechSupported] = React.useState(false);
   const [isRecording, setIsRecording] = React.useState(false);
+  const [recordingMode, setRecordingMode] = React.useState<'audio' | 'voice' | null>(null);
   const [recordingSeconds, setRecordingSeconds] = React.useState(0);
 
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
@@ -72,6 +77,11 @@ export function useVoiceRecorder({
   React.useEffect(() => {
     onStopTalkingRef.current = onStopTalking;
   }, [onStopTalking]);
+
+  const onStopRecordingRef = React.useRef(onStopRecording);
+  React.useEffect(() => {
+    onStopRecordingRef.current = onStopRecording;
+  }, [onStopRecording]);
 
   const voiceTextRef = React.useRef(voiceText);
   React.useEffect(() => {
@@ -210,6 +220,7 @@ export function useVoiceRecorder({
     setIsTalking(false);
 
     setIsRecording(false);
+    setRecordingMode(null);
     stopVoiceRecognition();
 
     const recorder = mediaRecorderRef.current;
@@ -223,134 +234,130 @@ export function useVoiceRecorder({
     mediaRecorderRef.current = null;
   }, [stopVoiceRecognition]);
 
-  const startRecording = React.useCallback(async () => {
-    try {
-      setRecordingError(null);
-      setRecordingSeconds(0);
-      clearAudio();
+  const startRecording = React.useCallback(
+    async (mode: 'audio' | 'voice') => {
+      try {
+        setRecordingError(null);
+        setRecordingSeconds(0);
+        clearAudio();
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      audioChunksRef.current = [];
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
+        audioChunksRef.current = [];
 
-      const recorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = recorder;
+        const recorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = recorder;
 
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      recorder.onstop = () => {
-        const nextAudioBlob = new Blob(audioChunksRef.current, {
-          type: recorder.mimeType || 'audio/webm',
-        });
-
-        if (nextAudioBlob.size > 0) {
-          setAudioBlob(nextAudioBlob);
-          const nextUrl = URL.createObjectURL(nextAudioBlob);
-          setAudioUrl((currentUrl) => {
-            if (currentUrl) {
-              URL.revokeObjectURL(currentUrl);
-            }
-            return nextUrl;
-          });
-        }
-
-        stream.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-        mediaRecorderRef.current = null;
-      };
-
-      recorder.start();
-      setIsRecording(true);
-
-      const audioCtx = new (
-        window.AudioContext ||
-        (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext!
-      )();
-      const analyser = audioCtx.createAnalyser();
-      const source = audioCtx.createMediaStreamSource(stream);
-      source.connect(analyser);
-      analyser.fftSize = 256;
-
-      audioContextRef.current = audioCtx;
-      analyserRef.current = analyser;
-
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-
-      const checkAudioLevel = () => {
-        analyser.getByteFrequencyData(dataArray);
-        let sum = 0;
-        for (let i = 0; i < bufferLength; i++) {
-          sum += dataArray[i];
-        }
-        const average = sum / bufferLength;
-        const currentlyTalking = average > 10;
-
-        if (currentlyTalking) {
-          setIsTalking(true);
-          if (silenceTimeoutRef.current !== null) {
-            window.clearTimeout(silenceTimeoutRef.current);
-            silenceTimeoutRef.current = null;
+        recorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunksRef.current.push(event.data);
           }
-          if (visualTimeoutRef.current !== null) {
-            window.clearTimeout(visualTimeoutRef.current);
-            visualTimeoutRef.current = null;
+        };
+
+        recorder.onstop = () => {
+          stream.getTracks().forEach((track) => track.stop());
+          streamRef.current = null;
+          mediaRecorderRef.current = null;
+
+          if (onStopRecordingRef.current) {
+            onStopRecordingRef.current(mode, voiceTextRef.current);
           }
-        } else {
-          if (visualTimeoutRef.current === null) {
-            visualTimeoutRef.current = window.setTimeout(() => {
-              visualTimeoutRef.current = null;
-              setIsTalking(false);
-            }, 1000);
+        };
+
+        recorder.start();
+        setIsRecording(true);
+        setRecordingMode(mode);
+
+        const audioCtx = new (
+          window.AudioContext ||
+          (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext!
+        )();
+        const analyser = audioCtx.createAnalyser();
+        const source = audioCtx.createMediaStreamSource(stream);
+        source.connect(analyser);
+        analyser.fftSize = 256;
+
+        audioContextRef.current = audioCtx;
+        analyserRef.current = analyser;
+
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        const checkAudioLevel = () => {
+          analyser.getByteFrequencyData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < bufferLength; i++) {
+            sum += dataArray[i];
           }
-          if (silenceTimeoutRef.current === null) {
-            silenceTimeoutRef.current = window.setTimeout(() => {
+          const average = sum / bufferLength;
+          const currentlyTalking = average > 10;
+
+          if (currentlyTalking) {
+            setIsTalking(true);
+            if (silenceTimeoutRef.current !== null) {
+              window.clearTimeout(silenceTimeoutRef.current);
               silenceTimeoutRef.current = null;
-              if (voiceTextRef.current.trim() !== '') {
-                if (onStopTalkingRef.current) {
-                  const currentText = voiceTextRef.current;
-                  voiceTextRef.current = '';
-                  setVoiceText(''); // Clear immediately so next tick doesn't resend
-                  finalTranscriptRef.current = '';
-                  if (recognitionRef.current) {
-                    recognitionRef.current.onresult = null; // Prevent final async results from flashing
-                    recognitionRef.current.stop();
+            }
+            if (visualTimeoutRef.current !== null) {
+              window.clearTimeout(visualTimeoutRef.current);
+              visualTimeoutRef.current = null;
+            }
+          } else {
+            if (visualTimeoutRef.current === null) {
+              visualTimeoutRef.current = window.setTimeout(() => {
+                visualTimeoutRef.current = null;
+                setIsTalking(false);
+              }, 1000);
+            }
+            if (silenceTimeoutRef.current === null && mode === 'voice') {
+              silenceTimeoutRef.current = window.setTimeout(() => {
+                silenceTimeoutRef.current = null;
+                if (voiceTextRef.current.trim() !== '') {
+                  if (onStopTalkingRef.current) {
+                    const currentText = voiceTextRef.current;
+                    voiceTextRef.current = '';
+                    setVoiceText(''); // Clear immediately so next tick doesn't resend
+                    finalTranscriptRef.current = '';
+                    if (recognitionRef.current) {
+                      recognitionRef.current.onresult = null; // Prevent final async results from flashing
+                      recognitionRef.current.stop();
+                    }
+
+                    onStopTalkingRef.current(currentText);
                   }
-
-                  onStopTalkingRef.current(currentText);
                 }
-              }
-            }, 1000);
+              }, 1000);
+            }
           }
-        }
 
-        animationFrameRef.current = requestAnimationFrame(checkAudioLevel);
-      };
+          animationFrameRef.current = requestAnimationFrame(checkAudioLevel);
+        };
 
-      checkAudioLevel();
+        checkAudioLevel();
 
-      timerRef.current = window.setInterval(() => {
-        setRecordingSeconds((value) => value + 1);
-      }, 1000);
+        timerRef.current = window.setInterval(() => {
+          setRecordingSeconds((value) => value + 1);
+        }, 1000);
 
-      startVoiceRecognition();
-    } catch {
-      setRecordingError('Không thể truy cập microphone. Hãy kiểm tra quyền trên trình duyệt.');
-      setIsRecording(false);
-    }
-  }, [clearAudio, startVoiceRecognition]);
+        startVoiceRecognition();
+      } catch {
+        setRecordingError('Không thể truy cập microphone. Hãy kiểm tra quyền trên trình duyệt.');
+        setIsRecording(false);
+      }
+    },
+    [clearAudio, startVoiceRecognition],
+  );
 
-  const toggleRecording = React.useCallback(() => {
-    if (isRecording) {
-      stopRecording();
-      return;
-    }
-    void startRecording();
-  }, [isRecording, startRecording, stopRecording]);
+  const toggleRecording = React.useCallback(
+    (mode: 'audio' | 'voice' = 'audio') => {
+      if (isRecording) {
+        stopRecording();
+        return;
+      }
+      void startRecording(mode);
+    },
+    [isRecording, startRecording, stopRecording],
+  );
 
   React.useEffect(() => {
     return () => {
@@ -395,6 +402,7 @@ export function useVoiceRecorder({
     isSpeechSupported,
     isTalking,
     recordingError,
+    recordingMode,
     toggleRecording,
     voiceText,
   };

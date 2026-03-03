@@ -20,8 +20,9 @@ type ChatComposerProps = {
   isTalking: boolean;
   onSend: (overrideText?: string) => Promise<void>;
   onTextChange: (value: string) => void;
-  onToggleRecording: () => void;
+  onToggleRecording: (mode?: 'audio' | 'voice') => void;
   recordingError: string | null;
+  recordingMode: 'audio' | 'voice' | null;
   text: string;
   voiceText: string;
 };
@@ -37,6 +38,7 @@ export function ChatComposer({
   onTextChange,
   onToggleRecording,
   recordingError,
+  recordingMode,
   text,
   voiceText,
 }: ChatComposerProps) {
@@ -123,30 +125,40 @@ export function ChatComposer({
               <PaperclipIcon />
             </InputGroupButton>
             <InputGroupButton
-              aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+              aria-label={
+                isRecording && recordingMode === 'audio' ? 'Stop recording' : 'Start recording'
+              }
               size="icon-sm"
-              variant={isRecording ? 'destructive' : 'ghost'}
-              onClick={onToggleRecording}
+              variant={isRecording && recordingMode === 'audio' ? 'destructive' : 'ghost'}
+              onClick={() => onToggleRecording('audio')}
               className="rounded-lg text-foreground"
             >
-              {isRecording ? <SquareIcon /> : <MicIcon />}
+              {isRecording && recordingMode === 'audio' ? <SquareIcon /> : <MicIcon />}
             </InputGroupButton>
             <InputGroupButton
               aria-label={text.trim() === '' && !audioUrl ? 'Open voice mode' : 'Send message'}
               size="icon-sm"
               variant="default"
-              disabled={isRecording || isLoading}
+              disabled={(isRecording && recordingMode !== 'voice') || isLoading}
               onClick={(e) => {
                 e.preventDefault();
-                if (text.trim() === '' && !audioUrl) {
-                  onToggleRecording();
+                if ((text.trim() === '' && !audioUrl) || isRecording) {
+                  onToggleRecording('voice');
                 } else {
                   onSend();
                 }
               }}
               className={cn('rounded-full text-background hover:bg-foreground/90 transition-all')}
             >
-              {text.trim() === '' && !audioUrl ? <AudioLines /> : <SendHorizontalIcon />}
+              {text.trim() === '' && !audioUrl ? (
+                isRecording && recordingMode === 'voice' ? (
+                  <SquareIcon />
+                ) : (
+                  <AudioLines />
+                )
+              ) : (
+                <SendHorizontalIcon />
+              )}
             </InputGroupButton>{' '}
           </InputGroupAddon>
         </InputGroup>
