@@ -19,7 +19,7 @@ export function ChatHeader({ onOpenSidebar }: ChatHeaderProps) {
           <PanelLeftIcon />
         </Button>
         <div className="mr-auto min-w-0">
-          <p className="truncate text-sm font-medium">New UI mockup</p>
+          <p className="truncate text-sm font-medium">Another ChatGPT</p>
           <p className="text-muted-foreground text-xs">ChatGPT 4.1 style workspace</p>
         </div>
         <Button
