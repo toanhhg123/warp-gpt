@@ -17,8 +17,10 @@ type ChatComposerProps = {
   isLoading: boolean;
   isRecording: boolean;
   isSpeechSupported: boolean;
+  isSpeaking: boolean;
   isTalking: boolean;
   onSend: (overrideText?: string) => Promise<void>;
+  onStopSpeaking: () => void;
   onTextChange: (value: string) => void;
   onToggleRecording: (mode?: 'audio' | 'voice') => void;
   recordingError: string | null;
@@ -33,8 +35,9 @@ export function ChatComposer({
   isLoading,
   isRecording,
   isSpeechSupported,
-  isTalking,
+  isSpeaking,
   onSend,
+  onStopSpeaking,
   onTextChange,
   onToggleRecording,
   recordingError,
@@ -45,43 +48,57 @@ export function ChatComposer({
   return (
     <footer className="border-border bg-background/95 p-3 backdrop-blur-md sm:p-4">
       <div className="w-full">
-        {isRecording && (
-          <div className="flex flex-col justify-center mb-4 items-center bg-transparent w-full">
-            <div className="relative h-[80px] w-full max-w-[160px] flex items-center justify-center">
-              <AnimatePresence mode="popLayout">
-                {!isTalking && (
-                  <motion.img
-                    key="idle"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.5, ease: 'easeInOut' }}
-                    src="/idle.gif"
-                    className="absolute inset-0 h-full w-full object-contain bg-transparent"
-                    alt="Idle indicator"
-                  />
+        {(isRecording || isLoading || isSpeaking) &&
+          (() => {
+            // talking.gif = AI is responding or speaking
+            // idle.gif = recording (listening to user)
+            const isTalkingState = isLoading || isSpeaking;
+            return (
+              <div className="flex flex-col justify-center mb-4 items-center bg-transparent w-full">
+                <div className="relative h-[80px] w-full max-w-[160px] flex items-center justify-center">
+                  <AnimatePresence mode="popLayout">
+                    {!isTalkingState && (
+                      <motion.img
+                        key="idle"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.5, ease: 'easeInOut' }}
+                        src="/idle.gif"
+                        className="absolute inset-0 h-full w-full object-contain bg-transparent"
+                        alt="Idle"
+                      />
+                    )}
+                    {isTalkingState && (
+                      <motion.img
+                        key="talking"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.5, ease: 'easeInOut' }}
+                        src="/talking.gif"
+                        className="absolute inset-0 h-full w-full object-contain bg-transparent"
+                        alt="Talking"
+                      />
+                    )}
+                  </AnimatePresence>
+                </div>
+                {voiceText && (
+                  <p className="mt-2 text-sm text-center font-medium animate-pulse text-foreground/80">
+                    {voiceText}
+                  </p>
                 )}
-                {isTalking && (
-                  <motion.img
-                    key="talking"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.5, ease: 'easeInOut' }}
-                    src="/talking.gif"
-                    className="absolute inset-0 h-full w-full object-contain bg-transparent"
-                    alt="Talking indicator"
-                  />
+                {isSpeaking && (
+                  <button
+                    onClick={onStopSpeaking}
+                    className="mt-2 text-xs text-muted-foreground hover:text-destructive transition-colors underline underline-offset-2"
+                  >
+                    Stop speaking
+                  </button>
                 )}
-              </AnimatePresence>
-            </div>
-            {voiceText && (
-              <p className="mt-2 text-sm text-center font-medium animate-pulse text-foreground/80">
-                {voiceText}
-              </p>
-            )}
-          </div>
-        )}
+              </div>
+            );
+          })()}
         <InputGroup className="h-auto items-end rounded-2xl overflow-hidden">
           <InputGroupAddon
             align="block-start"

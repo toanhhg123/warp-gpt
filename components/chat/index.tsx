@@ -8,6 +8,7 @@ import { ChatHeader } from './chat-header';
 import { ChatMessages } from './chat-messages';
 import { ChatSidebar } from './chat-sidebar';
 import { usePrefersReducedMotion } from './hooks/use-prefers-reduced-motion';
+import { useTTS } from './hooks/use-tts';
 import { useVoiceRecorder } from './hooks/use-voice-recorder';
 import type { ChatMessage } from './types';
 
@@ -18,6 +19,7 @@ export function ChatInterface() {
   const [isLoading, setIsLoading] = React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement | null>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
+  const { speak, stop: stopSpeaking, isSpeaking } = useTTS();
 
   const {
     audioBlob,
@@ -136,29 +138,34 @@ export function ChatInterface() {
             time: assistantTime,
           },
         ]);
-      } catch (error) {
+
+        // Auto-play the AI response via TTS
+        speak(replyText);
+      } catch {
         const assistantTime = new Date().toLocaleTimeString([], {
           hour: '2-digit',
           minute: '2-digit',
         });
 
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unexpected error while calling Gemini API.';
+        const errorMessage = 'Something went wrong. Try again later.';
 
         setMessages((prev) => [
           ...prev,
           {
             id: `m-${prev.length + 1}`,
             role: 'assistant',
-            text: `Lỗi khi gọi Gemini: ${errorMessage}`,
+            text: errorMessage,
             time: assistantTime,
           },
         ]);
+
+        // Speak the error message too
+        speak(errorMessage);
       } finally {
         setIsLoading(false);
       }
     },
-    [audioBlob, audioUrl, clearAudio, isLoading, messages, text],
+    [audioBlob, audioUrl, clearAudio, isLoading, messages, speak, text],
   );
 
   React.useEffect(() => {
@@ -194,8 +201,10 @@ export function ChatInterface() {
             isLoading={isLoading}
             isRecording={isRecording}
             isSpeechSupported={isSpeechSupported}
+            isSpeaking={isSpeaking}
             isTalking={isTalking}
             onSend={sendMessage}
+            onStopSpeaking={stopSpeaking}
             onTextChange={setText}
             onToggleRecording={toggleRecording}
             recordingError={recordingError}
