@@ -127,7 +127,7 @@ export function useVoiceRecorder({
     const recognition = new RecognitionCtor();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'vi-VN';
+    recognition.lang = 'en-US';
 
     finalTranscriptRef.current = '';
 
@@ -290,7 +290,7 @@ export function useVoiceRecorder({
             sum += dataArray[i];
           }
           const average = sum / bufferLength;
-          const currentlyTalking = average > 10;
+          const currentlyTalking = average > 20;
 
           if (currentlyTalking) {
             setIsTalking(true);

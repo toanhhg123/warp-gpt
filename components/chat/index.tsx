@@ -175,11 +175,11 @@ export function ChatInterface() {
   return (
     <div className="from-muted via-background to-muted/30 text-foreground min-h-screen bg-linear-to-b p-2 sm:p-4">
       <div className="mx-auto flex h-[calc(100dvh-1rem)] w-full max-w-400 overflow-hidden rounded-2xl sm:rounded-3xl border bg-background shadow-2xl sm:h-[calc(100dvh-2rem)]">
-        <ChatSidebar
+        {/* <ChatSidebar
           conversations={conversations}
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
-        />
+        /> */}
 
         <main className="flex min-w-0 flex-1 flex-col">
           <ChatHeader onOpenSidebar={() => setIsSidebarOpen(true)} />

@@ -43,11 +43,11 @@ export function ChatComposer({
   voiceText,
 }: ChatComposerProps) {
   return (
-    <footer className="border-border bg-background/95 border-t p-3 backdrop-blur-md sm:p-4">
+    <footer className="border-border bg-background/95 p-3 backdrop-blur-md sm:p-4">
       <div className="w-full">
         {isRecording && (
           <div className="flex flex-col justify-center mb-4 items-center bg-transparent w-full">
-            <div className="relative h-[160px] w-full max-w-[160px] flex items-center justify-center">
+            <div className="relative h-[80px] w-full max-w-[160px] flex items-center justify-center">
               <AnimatePresence mode="popLayout">
                 {!isTalking && (
                   <motion.img
