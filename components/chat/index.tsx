@@ -215,6 +215,7 @@ export function ChatInterface() {
             text={text}
             voiceText={voiceText}
             recordingMode={recordingMode}
+            onUnlock={unlock}
           />
         </main>
       </div>

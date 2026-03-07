@@ -27,6 +27,7 @@ type ChatComposerProps = {
   recordingMode: 'audio' | 'voice' | null;
   text: string;
   voiceText: string;
+  onUnlock?: () => void;
 };
 
 export function ChatComposer({
@@ -44,6 +45,7 @@ export function ChatComposer({
   recordingMode,
   text,
   voiceText,
+  onUnlock,
 }: ChatComposerProps) {
   return (
     <footer className="border-border bg-background/95 p-3 backdrop-blur-md sm:p-4">
@@ -147,7 +149,10 @@ export function ChatComposer({
               }
               size="icon-sm"
               variant={isRecording && recordingMode === 'audio' ? 'destructive' : 'ghost'}
-              onClick={() => onToggleRecording('audio')}
+              onClick={() => {
+                onUnlock?.();
+                onToggleRecording('audio');
+              }}
               className="rounded-lg text-foreground"
             >
               {isRecording && recordingMode === 'audio' ? <SquareIcon /> : <MicIcon />}
@@ -159,6 +164,7 @@ export function ChatComposer({
               disabled={(isRecording && recordingMode !== 'voice') || isLoading}
               onClick={(e) => {
                 e.preventDefault();
+                onUnlock?.();
                 if ((text.trim() === '' && !audioUrl) || isRecording) {
                   onToggleRecording('voice');
                 } else {
