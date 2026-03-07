@@ -91,12 +91,13 @@ export function ChatMessages({ messages, isLoading, messagesEndRef }: ChatMessag
             <div className="bg-primary text-primary-foreground mt-1 flex size-7 shrink-0 items-center justify-center rounded-full border">
               <BotIcon className="size-3.5" />
             </div>
-            <div className="bg-card border-border flex flex-col gap-2 rounded-2xl border px-4 py-4 text-sm leading-relaxed sm:max-w-[80%] h-11 justify-center">
+            <div className="bg-card border-border flex flex-col gap-2 rounded-2xl border px-4 py-3 text-sm leading-relaxed sm:max-w-[80%] min-h-11 justify-center">
               <div className="flex items-center gap-1">
                 <span className="animate-bounce bg-foreground/50 size-1.5 rounded-full [animation-delay:-0.3s]" />
                 <span className="animate-bounce bg-foreground/50 size-1.5 rounded-full [animation-delay:-0.15s]" />
                 <span className="animate-bounce bg-foreground/50 size-1.5 rounded-full" />
               </div>
+              <span className="text-xs text-muted-foreground animate-pulse">Thinking...</span>
             </div>
           </article>
         )}

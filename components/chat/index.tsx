@@ -15,11 +15,11 @@ import type { ChatMessage } from './types';
 export function ChatInterface() {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const [text, setText] = React.useState('');
-  const [messages, setMessages] = React.useState<ChatMessage[]>(starterMessages);
+  const [messages, setMessages] = React.useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement | null>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
-  const { speak, stop: stopSpeaking, isSpeaking } = useTTS();
+  const { speak, stop: stopSpeaking, isSpeaking, unlock } = useTTS();
 
   const {
     audioBlob,
@@ -58,6 +58,10 @@ export function ChatInterface() {
 
   const sendMessage = React.useCallback(
     async (overrideText?: string) => {
+      // Unlock speech synthesis on mobile (iOS/Android require a gesture-triggered call)
+      // Must happen synchronously before any `await` to stay within the gesture event stack
+      unlock();
+
       if (isLoading) {
         return;
       }
@@ -165,7 +169,7 @@ export function ChatInterface() {
         setIsLoading(false);
       }
     },
-    [audioBlob, audioUrl, clearAudio, isLoading, messages, speak, text],
+    [audioBlob, audioUrl, clearAudio, isLoading, messages, speak, text, unlock],
   );
 
   React.useEffect(() => {
