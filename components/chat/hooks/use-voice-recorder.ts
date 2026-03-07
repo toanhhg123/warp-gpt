@@ -268,78 +268,100 @@ export function useVoiceRecorder({
         setIsRecording(true);
         setRecordingMode(mode);
 
-        const audioCtx = new (
-          window.AudioContext ||
-          (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext!
-        )();
-        const analyser = audioCtx.createAnalyser();
-        const source = audioCtx.createMediaStreamSource(stream);
-        source.connect(analyser);
-        analyser.fftSize = 256;
-
-        audioContextRef.current = audioCtx;
-        analyserRef.current = analyser;
-
-        const bufferLength = analyser.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-
-        const checkAudioLevel = () => {
-          analyser.getByteFrequencyData(dataArray);
-          let sum = 0;
-          for (let i = 0; i < bufferLength; i++) {
-            sum += dataArray[i];
-          }
-          const average = sum / bufferLength;
-          const currentlyTalking = average > 20;
-
-          if (currentlyTalking) {
-            setIsTalking(true);
-            if (silenceTimeoutRef.current !== null) {
-              window.clearTimeout(silenceTimeoutRef.current);
-              silenceTimeoutRef.current = null;
-            }
-            if (visualTimeoutRef.current !== null) {
-              window.clearTimeout(visualTimeoutRef.current);
-              visualTimeoutRef.current = null;
-            }
-          } else {
-            if (visualTimeoutRef.current === null) {
-              visualTimeoutRef.current = window.setTimeout(() => {
-                visualTimeoutRef.current = null;
-                setIsTalking(false);
-              }, 1000);
-            }
-            if (silenceTimeoutRef.current === null && mode === 'voice') {
-              silenceTimeoutRef.current = window.setTimeout(() => {
-                silenceTimeoutRef.current = null;
-                if (voiceTextRef.current.trim() !== '') {
-                  if (onStopTalkingRef.current) {
-                    const currentText = voiceTextRef.current;
-                    voiceTextRef.current = '';
-                    setVoiceText(''); // Clear immediately so next tick doesn't resend
-                    finalTranscriptRef.current = '';
-                    if (recognitionRef.current) {
-                      recognitionRef.current.onresult = null; // Prevent final async results from flashing
-                      recognitionRef.current.stop();
-                    }
-
-                    onStopTalkingRef.current(currentText);
-                  }
-                }
-              }, 1000);
-            }
-          }
-
-          animationFrameRef.current = requestAnimationFrame(checkAudioLevel);
-        };
-
-        checkAudioLevel();
-
+        // Always start the timer immediately it starts recording reliably giving visual feedback
         timerRef.current = window.setInterval(() => {
           setRecordingSeconds((value) => value + 1);
         }, 1000);
 
-        startVoiceRecognition();
+        try {
+          const audioCtx = new (
+            window.AudioContext ||
+            (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext!
+          )();
+
+          // AudioContext might be in a suspended state on some browsers until explicit user interaction
+          if (audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+          }
+
+          const analyser = audioCtx.createAnalyser();
+          const source = audioCtx.createMediaStreamSource(stream);
+          source.connect(analyser);
+          analyser.fftSize = 256;
+
+          audioContextRef.current = audioCtx;
+          analyserRef.current = analyser;
+
+          const bufferLength = analyser.frequencyBinCount;
+          const dataArray = new Uint8Array(bufferLength);
+
+          const checkAudioLevel = () => {
+            if (!analyserRef.current) return;
+
+            analyser.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < bufferLength; i++) {
+              sum += dataArray[i];
+            }
+            const average = sum / bufferLength;
+            // Lowered the threshold slightly for mobile microphones
+            const currentlyTalking = average > 15;
+
+            if (currentlyTalking) {
+              setIsTalking(true);
+              if (silenceTimeoutRef.current !== null) {
+                window.clearTimeout(silenceTimeoutRef.current);
+                silenceTimeoutRef.current = null;
+              }
+              if (visualTimeoutRef.current !== null) {
+                window.clearTimeout(visualTimeoutRef.current);
+                visualTimeoutRef.current = null;
+              }
+            } else {
+              if (visualTimeoutRef.current === null) {
+                visualTimeoutRef.current = window.setTimeout(() => {
+                  visualTimeoutRef.current = null;
+                  setIsTalking(false);
+                }, 1000);
+              }
+              if (silenceTimeoutRef.current === null && mode === 'voice') {
+                silenceTimeoutRef.current = window.setTimeout(() => {
+                  silenceTimeoutRef.current = null;
+                  if (voiceTextRef.current.trim() !== '') {
+                    if (onStopTalkingRef.current) {
+                      const currentText = voiceTextRef.current;
+                      voiceTextRef.current = '';
+                      setVoiceText(''); // Clear immediately so next tick doesn't resend
+                      finalTranscriptRef.current = '';
+                      if (recognitionRef.current) {
+                        recognitionRef.current.onresult = null; // Prevent final async results from flashing
+                        recognitionRef.current.stop();
+                      }
+
+                      onStopTalkingRef.current(currentText);
+                    }
+                  }
+                }, 1500); // Increased silence timeout slightly to prevent premature cutting off
+              }
+            }
+
+            animationFrameRef.current = requestAnimationFrame(checkAudioLevel);
+          };
+
+          checkAudioLevel();
+        } catch (audioCtxError) {
+          console.warn(
+            'AudioContext initialization failed, falling back to basic recording:',
+            audioCtxError,
+          );
+          // We still continue without visual audio levels if AudioContext fails
+        }
+
+        try {
+          startVoiceRecognition();
+        } catch (speechErr) {
+          console.warn('Speech recognition failed to start:', speechErr);
+        }
       } catch {
         setRecordingError('Không thể truy cập microphone. Hãy kiểm tra quyền trên trình duyệt.');
         setIsRecording(false);
